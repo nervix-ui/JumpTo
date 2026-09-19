@@ -12,65 +12,88 @@ class JumpToPlayer(xbmc.Player):
         self.load_database()
 
     def load_database(self):
-        """Charge la base de données JSON depuis le repo Git."""
+        """Charge la base de données JSON."""
         try:
             req = urllib.request.Request(JSON_URL, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=5) as response:
                 self.intros_data = json.loads(response.read().decode('utf-8'))
-            xbmc.log("[JumpTo] Base de données chargée avec succès avec %d éléments" % len(self.intros_data), xbmc.LOGINFO)
+            xbmc.log(f"[JumpTo] JSON chargé avec succès avec {len(self.intros_data)} entrées", xbmc.LOGINFO)
         except Exception as e:
-            xbmc.log(f"[JumpTo] Erreur lors du chargement du JSON : {e}", xbmc.LOGERROR)
+            xbmc.log(f"[JumpTo] Erreur chargement JSON : {e}", xbmc.LOGERROR)
 
     def onAVStarted(self):
-        """Déclenché au lancement d'une vidéo."""
+        """Déclenché dès que l'audio/vidéo commence."""
         if not self.isPlayingVideo():
             return
 
-        # Récupération des métadonnées de la vidéo en cours
-        show_title = self.getVideoInfoTag().getTVShowTitle()
-        season = self.getVideoInfoTag().getSeason()
-        episode = self.getVideoInfoTag().getEpisode()
-        xbmc.log(f"[JumpTo] Lecture détectée : {show_title} S{season}E{episode}", xbmc.LOGINFO)
-        if not show_title or season == -1 or episode == -1:
-            return  # Ce n'est pas un épisode de série valide
+        # Attente très courte pour s'assurer que les métadonnées de la vidéo sont chargées
+        xbmc.sleep(500)
 
-        # Recherche dans le JSON chargé
+        info_tag = self.getVideoInfoTag()
+        show_title = info_tag.getTVShowTitle()
+        season = info_tag.getSeason()
+        episode = info_tag.getEpisode()
+
+        xbmc.log(f"[JumpTo] Lecture détectée : {show_title} S{season}E{episode}", xbmc.LOGINFO)
+
+        if not show_title or season == -1 or episode == -1:
+            return
+
         intro_duration = self.find_intro_duration(show_title, season, episode)
 
         if intro_duration:
+            xbmc.log(f"[JumpTo] Intro trouvée : {intro_duration}s", xbmc.LOGINFO)
             self.prompt_jump(intro_duration)
 
     def find_intro_duration(self, show, season, episode):
-        """Cherche si l'épisode est présent dans le JSON."""
+        """Vérifie si l'épisode correspond à une entrée du JSON."""
         for item in self.intros_data:
-            if (item.get("show").lower() == show.lower() and 
-                item.get("season") == season and 
-                item.get("episode") == episode):
+            if item.get("show").lower() != show.lower():
+                continue
+            
+            if item.get("season") != season:
+                continue
+
+            ep_data = item.get("episode")
+
+            # Cas 1 : Nombre unique (ex: 1)
+            if isinstance(ep_data, int) and ep_data == episode:
                 return item.get("intro_length")
+
+            # Cas 2 : Liste d'épisodes (ex: [1, 2, 3])
+            if isinstance(ep_data, list) and episode in ep_data:
+                return item.get("intro_length")
+
+            # Cas 3 : Intervalle sous forme de chaîne (ex: "1-13")
+            if isinstance(ep_data, str) and "-" in ep_data:
+                try:
+                    start, end = map(int, ep_data.split("-"))
+                    if start <= episode <= end:
+                        return item.get("intro_length")
+                except ValueError:
+                    pass
+
         return None
 
     def prompt_jump(self, duration):
-        """Affiche la notification/dialogue avec un délai d'expiration de 10 secondes."""
+        """Affiche la notification/dialogue pour sauter l'intro."""
         dialog = xbmcgui.Dialog()
-        # Affiche un dialogue de confirmation pendant 10 secondes
         do_jump = dialog.yesno(
             "JumpTo",
             f"Passer le générique d'intro ({duration}s) ?",
             yeslabel="Sauter",
             nolabel="Ignorer",
-            autoclose=10000  # Se ferme automatiquement au bout de 10 000 ms (10s)
+            autoclose=10000
         )
 
         if do_jump:
-            current_time = self.getTime()
-            self.seekTime(current_time + duration)
+            self.seekTime(duration)
 
 
 if __name__ == '__main__':
     player = JumpToPlayer()
     monitor = xbmc.Monitor()
 
-    # Maintient le service actif tant que Kodi est ouvert
     while not monitor.abortRequested():
-        if monitor.waitForAbort(10):
+        if monitor.waitForAbort(1):
             break
