@@ -1,0 +1,14 @@
+[
+  {
+    "show": "Game of Thrones",
+    "season": 1,
+    "episode": 1,
+    "intro_length": 90
+  },
+  {
+    "show": "Breaking Bad",
+    "season": 1,
+    "episode": 1,
+    "intro_length": 18
+  }
+]
