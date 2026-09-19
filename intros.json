@@ -16,5 +16,23 @@
     "season": 1,
     "episode": "1-13",
     "intro_length": 94
+  },
+  {
+    "show": "Les Soprano",
+    "season": 2,
+    "episode": "1-13",
+    "intro_length": 94
+  },
+  {
+    "show": "Les Soprano",
+    "season": 3,
+    "episode": "1-13",
+    "intro_length": 94
+  },
+  {
+    "show": "Les Soprano",
+    "season": 4,
+    "episode": "1-13",
+    "intro_length": 94
   }
 ]
