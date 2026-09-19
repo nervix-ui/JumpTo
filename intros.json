@@ -10,5 +10,11 @@
     "season": 1,
     "episode": 1,
     "intro_length": 18
+  },
+  {
+    "show": "The Sopranos",
+    "season": 1,
+    "episode": 1,
+    "intro_length": 94
   }
 ]
